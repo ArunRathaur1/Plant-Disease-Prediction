@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 import os
-import google.generativeai as genai
+# import google.generativeai as genai
 
 # Configure Gemini API
 API_KEY = "AIzaSyBdJucnG3ujeokv7OzyPT9pRkuSEzs4PQ0"

@@ -3,13 +3,9 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 import os
-
-# Import Google Generative AI first
 import google.generativeai as genai
 
-# Then configure it
-API_KEY = "AIzaSyBdJucnG3ujeokv7OzyPT9pRkuSEzs4PQ0"
-genai.configure(api_key=API_KEY)
+genai.configure(api_key="AIzaSyBdJucnG3ujeokv7OzyPT9pRkuSEzs4PQ0")
 model = genai.GenerativeModel(model_name="gemini-2.0-flash")
 
 # Load Fertilizer and Fungicide Data

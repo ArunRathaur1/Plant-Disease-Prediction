@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import os
 import google.generativeai as genai
+import requests
 
-genai.configure(api_key="AIzaSyBdJucnG3ujeokv7OzyPT9pRkuSEzs4PQ0")
-model = genai.GenerativeModel(model_name="gemini-2.0-flash")
+TOGETHER_API_KEY = "10dd2121805fe8b6cded298276838932e3a574a539bcc0291202b3f25ddcf749"
 
 # Load Fertilizer and Fungicide Data
 try:
@@ -17,6 +17,36 @@ except FileNotFoundError:
 
 # Function to get response from Gemini
 def get_gemini_response(prompt):
+    try:
+        headers = {
+            "Authorization": f"Bearer {TOGETHER_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": "deepseek-ai/DeepSeek-V3",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        }
+
+        response = requests.post(
+            "https://api.together.xyz/v1/chat/completions",
+            headers=headers,
+            json=payload
+        )
+
+        response.raise_for_status()
+        data = response.json()
+        return data["choices"][0]["message"]["content"]
+
+    except Exception as e:
+        st.error(f"Error with Together AI API: {str(e)}")
+        return get_fallback_response(prompt)
+
     try:
         response = model.generate_content(prompt)  # Using the model instance directly
         return response.text

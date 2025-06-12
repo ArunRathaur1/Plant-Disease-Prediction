@@ -3,11 +3,9 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 import os
-import google.generativeai as genai  # Unused in this case, can remove
+import google.generativeai as genai
 import requests
-import difflib  # Required for best match logic
 
-# Set Together AI API Key
 TOGETHER_API_KEY = "10dd2121805fe8b6cded298276838932e3a574a539bcc0291202b3f25ddcf749"
 
 # Load Fertilizer and Fungicide Data
@@ -49,7 +47,14 @@ def get_gemini_response(prompt):
         st.error(f"Error with Together AI API: {str(e)}")
         return get_fallback_response(prompt)
 
-# Fallback response if Together API fails
+    try:
+        response = model.generate_content(prompt)  # Using the model instance directly
+        return response.text
+    except Exception as e:
+        st.error(f"Error with Together AI API: {str(e)}")
+        return get_fallback_response(prompt)
+
+# Fallback response
 def get_fallback_response(prompt):
     disease_name = ""
     if "plant disease:" in prompt:
@@ -85,12 +90,12 @@ def model_prediction(test_image):
         model_path = "trained_model.keras"
         if not os.path.exists(model_path):
             st.error(f"Model file {model_path} not found. Using demo mode.")
-            return 16  # Demo class index (Peach Bacterial Spot)
+            return 16  # Peach Bacterial spot
 
         model = tf.keras.models.load_model(model_path)
         image = tf.keras.preprocessing.image.load_img(test_image, target_size=(128,128))
         input_arr = tf.keras.preprocessing.image.img_to_array(image)
-        input_arr = np.expand_dims(input_arr, axis=0)
+        input_arr = np.array([input_arr])
 
         with st.spinner("Analyzing image..."):
             prediction = model.predict(input_arr)
@@ -99,12 +104,10 @@ def model_prediction(test_image):
 
     except Exception as e:
         st.error(f"Error in model prediction: {str(e)}")
-        return 16  # Fallback to demo
+        return 16  # Demo index
 
 # UI
-st.set_page_config(page_title="Plant Disease Recognition", layout="wide")
 st.header("🌱 Plant Disease Recognition System")
-
 st.markdown("""
 <style>
 .stApp {
@@ -129,7 +132,8 @@ if test_image is not None and show_image:
     st.image(test_image, caption="Uploaded Image", use_column_width=True)
 
 if test_image is not None and predict_button:
-    result_index = model_prediction(test_image)
+    with st.spinner("Analyzing image..."):
+        result_index = model_prediction(test_image)
 
     class_name = ['Apple___Apple_scab','Apple___Black_rot','Apple___Cedar_apple_rust','Apple___healthy',
     'Blueberry___healthy','Cherry_(including_sour)___Powdery_mildew','Cherry_(including_sour)___healthy',
@@ -148,6 +152,7 @@ if test_image is not None and predict_button:
     formatted_disease = detected_disease.replace('_', ' ')
     st.success(f"🌿 Detected Disease: **{formatted_disease}**")
 
+    # Best match function
     def find_best_match(disease_name, disease_list):
         matches = difflib.get_close_matches(disease_name, disease_list, n=1, cutoff=0.5)
         return matches[0] if matches else None
@@ -159,7 +164,7 @@ if test_image is not None and predict_button:
         match = fertilizer_df[fertilizer_df["Crop Disease"] == best_match]
         st.success(f"🛠 **Recommended Treatment for {best_match}**")
 
-        for _, row in match.iterrows():
+        for index, row in match.iterrows():
             st.write(f"**🌾 Crop:** {row['Crop Disease']}")
             st.write(f"🔹 **Recommended Fertilizer:** {row['Fertilizer']}")
             st.write(f"🦠 **Recommended Fungicide/Insecticide:** {row['Fungicide / Insecticide']}")
@@ -173,33 +178,31 @@ if test_image is not None and predict_button:
             2. How it affects the plant
             3. How to properly apply the recommended treatment: {row['Fertilizer']} and {row['Fungicide / Insecticide']}
             4. Preventive measures for future
+            
             Respond in a friendly, helpful tone as if you're talking to a farmer who needs guidance.
             Keep the response concise but informative.
             """
-
             with st.spinner("Generating detailed explanation..."):
                 gemini_response = get_gemini_response(prompt)
                 st.subheader("🤖 Expert Explanation")
                 st.write(gemini_response)
-
     else:
         st.warning("⚠ No specific treatment found in the dataset for this disease.")
 
         prompt = f"""
         You are a helpful agricultural expert. 
         The plant disease detection system has identified: {formatted_disease}.
-
+        
         Please provide:
         1. A detailed explanation of this disease
         2. Recommended fertilizers and fungicides/insecticides that would be effective
         3. Approximate costs of these treatments
         4. Application methods and preventive measures
-
+        
         Respond in a friendly, helpful tone as if you're talking to a farmer who needs guidance.
         Format your response with clear sections and be specific about treatment recommendations.
-        Limit to 200 words.
+        200 words at max
         """
-
         with st.spinner("Searching for treatment information..."):
             gemini_response = get_gemini_response(prompt)
             st.subheader("Expert Recommendation")
